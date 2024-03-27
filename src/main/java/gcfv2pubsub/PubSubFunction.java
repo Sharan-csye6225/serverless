@@ -17,12 +17,15 @@ import java.util.logging.Logger;
 
 public class PubSubFunction implements CloudEventsFunction {
 
+    static final String DB_URL = System.getenv("DATABASE_URL");
+    static final String DB_USER = System.getenv("DB_USER");
+    static final String DB_PASSWORD = System.getenv("DB_PASSWORD");
+    static final String TABLE_NAME = System.getenv("TABLE_NAME");
+    static final String QUERY = "SELECT * FROM " + TABLE_NAME;
+    static final String SUB_DOMAIN = System.getenv("SUB_DOMAIN");
+    static final String DOMAIN = System.getenv("DOMAIN");
+    static final String PRIVATE_API_KEY = System.getenv("PRIVATE_API_KEY");
     private static final Logger logger = Logger.getLogger(PubSubFunction.class.getName());
-
-    static final String DB_URL = "jdbc:mysql://10.45.203.2:3306/webapp?createDatabaseIfNotExist=true";
-    static final String USER = "webapp";
-    static final String PASS = "N+]KMyLn=N#<lvzk";
-    static final String QUERY = "SELECT * FROM user";
 
     @Override
     public void accept(CloudEvent event) {
@@ -38,35 +41,36 @@ public class PubSubFunction implements CloudEventsFunction {
         String queryParams = new String(Base64.getDecoder().decode(encodedData));
         String senderEmail = queryParams.split("&")[0];
         logger.info("Pub/Sub message: " + senderEmail);
-
-        String DOMAIN = System.getenv("DOMAIN");
-        String PRIVATE_API_KEY = System.getenv("PRIVATE_API_KEY");
         logger.info("PRIVATE_API_KEY: " + PRIVATE_API_KEY);
+        logger.info("SUB_DOMAIN: " + SUB_DOMAIN);
         logger.info("DOMAIN: " + DOMAIN);
         MailgunMessagesApi mailgunMessagesApi = MailgunClient.config(PRIVATE_API_KEY)
                 .createApi(MailgunMessagesApi.class);
-        String verificationLink = "http://sharankumar.me:8080/v1/user/verification?" + queryParams;
+
+        String verificationLink = "http://" + DOMAIN + ":8080/v1/user/verification?" + queryParams;
         com.mailgun.model.message.Message emailMessage = com.mailgun.model.message.Message.builder()
                 .from("noreply@mail.sharakumar.me")
                 .to(senderEmail)
                 .subject("User Account Verification Email")
-                .text("This is a User Account Verification Email. Please click the link within 2 mins, to verify your account. \n " + verificationLink)
+                .html("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Email Verification</title></head><body><p>This is a User Account Verification Email. Please click the link within 2 mins, to verify your account.</p><p><a href=\"" + verificationLink + "\">" + verificationLink + "</a></p></body></html>")
+                //.text("This is a User Account Verification Email. Please click the link within 2 mins, to verify your account. \n " + verificationLink)
                 .build();
-        MessageResponse messageResponse = mailgunMessagesApi.sendMessage(DOMAIN, emailMessage);
+        MessageResponse messageResponse = mailgunMessagesApi.sendMessage(SUB_DOMAIN, emailMessage);
         updateUserData(senderEmail);
 
     }
 
-    private void updateUserData (String username){
+    private void updateUserData(String username) {
         logger.info("**** Inside updateUserData ****");
         try {
             Class.forName("com.mysql.jdbc.Driver").newInstance();
-            Connection conn = DriverManager.getConnection(DB_URL, USER, PASS);
+            Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
             Statement stmt = conn.createStatement();
-            String query = "UPDATE user SET email_sent_time = '" + LocalDateTime.now(ZoneOffset.UTC) + "' WHERE username = '" + username + "'";
+            String query = "UPDATE " + TABLE_NAME + " SET email_sent_time = '" + LocalDateTime.now(ZoneOffset.UTC) + "' WHERE username = '" + username + "'";
             stmt.executeUpdate(query);
             ResultSet rs = stmt.executeQuery(QUERY);
-            while(rs.next()){
+            while (rs.next()) {
+                logger.info("username: " + rs.getString("username"));
                 logger.info("email_sent_time: " + rs.getString("email_sent_time"));
             }
             rs.close();
