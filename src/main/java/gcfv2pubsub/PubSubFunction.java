@@ -47,7 +47,7 @@ public class PubSubFunction implements CloudEventsFunction {
         MailgunMessagesApi mailgunMessagesApi = MailgunClient.config(PRIVATE_API_KEY)
                 .createApi(MailgunMessagesApi.class);
 
-        String verificationLink = "http://" + DOMAIN + ":8080/v1/user/verification?" + queryParams;
+        String verificationLink = "https://" + DOMAIN + ":443/v1/user/verification?" + queryParams;
         com.mailgun.model.message.Message emailMessage = com.mailgun.model.message.Message.builder()
                 .from("noreply@mail.sharakumar.me")
                 .to(senderEmail)
