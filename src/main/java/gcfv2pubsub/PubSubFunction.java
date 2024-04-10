@@ -68,10 +68,13 @@ public class PubSubFunction implements CloudEventsFunction {
             Statement stmt = conn.createStatement();
             String query = "UPDATE " + TABLE_NAME + " SET email_sent_time = '" + LocalDateTime.now(ZoneOffset.UTC) + "' WHERE username = '" + username + "'";
             stmt.executeUpdate(query);
+            String query1 = "UPDATE " + TABLE_NAME + " SET email_expiry_time = '" + LocalDateTime.now(ZoneOffset.UTC).plusMinutes(2) + "' WHERE username = '" + username + "'";
+            stmt.executeUpdate(query1);
             ResultSet rs = stmt.executeQuery(QUERY);
             while (rs.next()) {
                 logger.info("username: " + rs.getString("username"));
                 logger.info("email_sent_time: " + rs.getString("email_sent_time"));
+                logger.info("email_expiry_time: " + rs.getString("email_expiry_time"));
             }
             rs.close();
         } catch (SQLException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
